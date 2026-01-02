@@ -1,0 +1,5 @@
+{
+  "name": "나노 바나나 프로 인물중심 애디터",
+  "description": "Gemini 3 Pro Image (Nano Banana Pro) 모델을 사용한 고해상도 이미지 생성 스튜디오입니다. 4K 해상도와 다양한 화면 비율을 지원합니다.",
+  "requestFramePermissions": []
+}
