@@ -148,9 +148,9 @@ const handleGenerateCharacterSheet = async (sourceImage: GeneratedImage) => {
     } catch (e: any) { handleError(e); } finally { setIsGenerating(false); }
   };
 
-const handleRemixImage = async (sourceImage: GeneratedImage, pose: SubjectPose, angle: CameraAngle) => {
-  const savedKey = localStorage.getItem('gemini_api_key'); //
-  if (!savedKey) return alert("API 키가 없습니다.");
+  const handleRemixImage = async (sourceImage: GeneratedImage, pose: SubjectPose, angle: CameraAngle) => {
+    const savedKey = localStorage.getItem('gemini_api_key'); //
+    if (!savedKey) return alert("API 키가 없습니다.");
   
     setIsGenerating(true);
     setError(null);
@@ -169,9 +169,9 @@ try {
     } catch (e: any) { handleError(e); } finally { setIsGenerating(false); }
   };
 
-const handlePromptEdit = async (sourceImage: GeneratedImage, instruction: string) => {
-  const savedKey = localStorage.getItem('gemini_api_key'); //
-  if (!savedKey) return alert("API 키가 없습니다.");
+  const handlePromptEdit = async (sourceImage: GeneratedImage, instruction: string) => {
+    const savedKey = localStorage.getItem('gemini_api_key'); //
+    if (!savedKey) return alert("API 키가 없습니다.");
   
     setIsGenerating(true);
     setError(null);
@@ -187,11 +187,15 @@ try {
   };
 
   const handleChangePose = async (sourceImage: GeneratedImage, sketchUrl: string, prompt: string) => {
+    const savedKey = localStorage.getItem('gemini_api_key'); //
+    if (!savedKey) return alert("API 키가 없습니다.");
+  
     setIsGenerating(true);
     setError(null);
     setSelectedImage(null); 
     try {
-      const base64Url = await changePoseWithSketch(sourceImage.url, sketchUrl, prompt, sourceImage.aspectRatio);
+      // 맨 앞에 savedKey 추가
+      const base64Url = await changePoseWithSketch(savedKey, sourceImage.url, sketchUrl, prompt, sourceImage.aspectRatio);
       setGeneratedImages(prev => [{
         id: Date.now().toString(), url: base64Url, prompt: `Pose Change: ${prompt}`,
         aspectRatio: sourceImage.aspectRatio, size: sourceImage.size, createdAt: Date.now()
