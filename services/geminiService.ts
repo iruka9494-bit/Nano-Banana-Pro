@@ -43,6 +43,7 @@ export const testApiKeyConnection = async (): Promise<{ success: boolean; messag
 };
 
 export const generateImage = async (
+  apiKey: string, // <-- 첫 번째 인자로 apiKey 추가
   prompt: string,
   aspectRatio: AspectRatio,
   imageSize: ImageSize,
@@ -51,7 +52,7 @@ export const generateImage = async (
   referenceImages: string[] = [],
   cameraType: CameraType = CameraType.AUTO
 ): Promise<string> => {
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const ai = new GoogleGenAI({ apiKey: apiKey }); // <-- 전달받은 사용자 키 사용
 
   try {
     const parts: any[] = [];
