@@ -94,18 +94,24 @@ useEffect(() => {
       setError(details);
   };
 
-  const handleGenerate = async () => {
-    const activeRefs = config.referenceImages.filter(img => img.isEnabled).map(img => img.url);
-    if (!config.prompt.trim() && activeRefs.length === 0) return;
+const handleGenerate = async () => {
+  // 1. 브라우저에서 저장된 API 키를 가져옵니다.
+  const savedKey = localStorage.getItem('gemini_api_key');
+  if (!savedKey) return alert("API 키가 저장되어 있지 않습니다.");
 
-    setIsGenerating(true);
-    setError(null);
+  const activeRefs = config.referenceImages.filter(img => img.isEnabled).map(img => img.url);
+  if (!config.prompt.trim() && activeRefs.length === 0) return;
 
-    try {
-      const base64Url = await generateImage(
-        config.prompt, config.aspectRatio, config.imageSize,
-        config.subjectPose, config.cameraAngle, activeRefs, config.cameraType
-      );
+  setIsGenerating(true);
+  setError(null);
+
+  try {
+    // 2. 함수의 첫 번째 인자로 savedKey를 추가합니다.
+    const base64Url = await generateImage(
+      savedKey, 
+      config.prompt, config.aspectRatio, config.imageSize,
+      config.subjectPose, config.cameraAngle, activeRefs, config.cameraType
+    );
       
       const newImage: GeneratedImage = {
         id: Date.now().toString(),
