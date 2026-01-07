@@ -38,7 +38,7 @@ export const testApiKeyConnection = async (): Promise<{ success: boolean; messag
       details = "네트워크 장애: 인터넷 연결을 확인하거나 나중에 다시 시도해 주세요.";
     }
     
-    return { success: false, message: "연결 실패", details };
+     { success: false, message: "연결 실패", details };
   }
 };
 
@@ -181,10 +181,10 @@ export const generateImage = async (
 
         if (response.promptFeedback?.blockReason) throw new Error(`Request blocked: ${response.promptFeedback.blockReason}`);
         const candidate = response.candidates?.[0];
-        if (!candidate) throw new Error("No candidates returned.");
+        if (!candidate) throw new Error("No candidates ed.");
         if (candidate.content?.parts) {
           for (const part of candidate.content.parts) {
-            if (part.inlineData && part.inlineData.data) return `data:${part.inlineData.mimeType || "image/png"};base64,${part.inlineData.data}`;
+            if (part.inlineData && part.inlineData.data)  `data:${part.inlineData.mimeType || "image/png"};base64,${part.inlineData.data}`;
           }
         }
         throw new Error("No image data found.");
@@ -201,38 +201,38 @@ export const generateImage = async (
   } catch (error) { throw error; }
 };
 
-export const editImageWithPrompt = async (originalImageUrl: string, instruction: string, aspectRatio: AspectRatio): Promise<string> => {
+export const editImageWithPrompt = async (apiKey: string, originalImageUrl: string, instruction: string, aspectRatio: AspectRatio): Promise<string> => {
   const editPrompt = `EDITING INSTRUCTION: ${instruction}. BASE IMAGE: Provided. MODIFICATION: Apply instruction. CRITICAL: Maintain identity.`;
-  return generateImage(editPrompt, aspectRatio, ImageSize.RES_2K, SubjectPose.NONE, CameraAngle.NONE, [originalImageUrl]);
+  return generateImage(apiKey, editPrompt, aspectRatio, ImageSize.RES_2K, SubjectPose.NONE, CameraAngle.NONE, [originalImageUrl]);
 };
 
-export const changePoseWithSketch = async (originalImageUrl: string, sketchImageUrl: string, promptDescription: string, aspectRatio: AspectRatio): Promise<string> => {
+export const changePoseWithSketch = async (apiKey: string, originalImageUrl: string, sketchImageUrl: string, promptDescription: string, aspectRatio: AspectRatio): Promise<string> => {
   const posePrompt = `POSE MODIFICATION TASK. INPUT 1: Original. INPUT 2: Sketch. INSTRUCTION: Match pose in sketch. Maintain identity.`;
-  return generateImage(posePrompt, aspectRatio, ImageSize.RES_2K, SubjectPose.NONE, CameraAngle.NONE, [originalImageUrl, sketchImageUrl]);
+  return generateImage(apiKey, posePrompt, aspectRatio, ImageSize.RES_2K, SubjectPose.NONE, CameraAngle.NONE, [originalImageUrl, sketchImageUrl]);
 };
 
-export const upscaleImage = async (originalPrompt: string, aspectRatio: AspectRatio, imageUrl: string, targetSize: ImageSize): Promise<string> => {
+export const upscaleImage = async (apiKey: string, originalPrompt: string, aspectRatio: AspectRatio, imageUrl: string, targetSize: ImageSize): Promise<string> => {
   const enhancementPrompt = `${originalPrompt}, sharp focus, best quality, ultra high res, crystal clear, noise reduction, professional photography`;
-  return generateImage(enhancementPrompt, aspectRatio, targetSize, SubjectPose.NONE, CameraAngle.NONE, [imageUrl]);
+  return generateImage(apiKey, enhancementPrompt, aspectRatio, targetSize, SubjectPose.NONE, CameraAngle.NONE, [imageUrl]);
 };
 
-export const generateCharacterSheet = async (originalPrompt: string, referenceImageUrl: string): Promise<string> => {
+export const generateCharacterSheet = async (apiKey: string, originalPrompt: string, referenceImageUrl: string): Promise<string> => {
   const sheetPrompt = `Create a professional character reference sheet: Front, Side, and Back View. Preserve style. NO TEXT.`;
-  return generateImage(sheetPrompt, AspectRatio.LANDSCAPE_16_9, ImageSize.RES_2K, SubjectPose.NONE, CameraAngle.NONE, [referenceImageUrl]);
+  return generateImage(apiKey, sheetPrompt, AspectRatio.LANDSCAPE_16_9, ImageSize.RES_2K, SubjectPose.NONE, CameraAngle.NONE, [referenceImageUrl]);
 };
 
-export const outpaintImage = async (canvasImageUrl: string, originalPrompt: string, aspectRatio: AspectRatio, fillPrompt: string = ""): Promise<string> => {
+export const outpaintImage = async (apiKey: string, canvasImageUrl: string, originalPrompt: string, aspectRatio: AspectRatio, fillPrompt: string = ""): Promise<string> => {
   const contextPrompt = fillPrompt.trim() ? `Outpaint: ${fillPrompt}. Style: ${originalPrompt}` : `Generative Fill: Seamlessly extend the image. Context: ${originalPrompt}`;
-  return generateImage(contextPrompt, aspectRatio, ImageSize.RES_2K, SubjectPose.NONE, CameraAngle.NONE, [canvasImageUrl]);
+  return generateImage(apiKey, contextPrompt, aspectRatio, ImageSize.RES_2K, SubjectPose.NONE, CameraAngle.NONE, [canvasImageUrl]);
 };
 
-export const inpaintImage = async (originalImageUrl: string, maskImageUrl: string, prompt: string, aspectRatio: AspectRatio): Promise<string> => {
+export const inpaintImage = async (apiKey: string, originalImageUrl: string, maskImageUrl: string, prompt: string, aspectRatio: AspectRatio): Promise<string> => {
   const safePrompt = prompt.trim() || "Modify this area";
   const finalPrompt = `Inpainting: ${safePrompt}. Change ONLY masked area.`;
-  return generateImage(finalPrompt, aspectRatio, ImageSize.RES_2K, SubjectPose.NONE, CameraAngle.NONE, [originalImageUrl, maskImageUrl]);
+  return generateImage(apiKey, finalPrompt, aspectRatio, ImageSize.RES_2K, SubjectPose.NONE, CameraAngle.NONE, [originalImageUrl, maskImageUrl]);
 };
 
-export const generateMacroShot = async (croppedImageUrl: string, originalPrompt: string, aspectRatio: AspectRatio): Promise<string> => {
+export const generateMacroShot = async (apiKey: string, croppedImageUrl: string, originalPrompt: string, aspectRatio: AspectRatio): Promise<string> => {
   const upscalePrompt = `High-resolution upscale of cropped view. Context: ${originalPrompt}. 4K, sharpen details.`;
-  return generateImage(upscalePrompt, aspectRatio, ImageSize.RES_4K, SubjectPose.NONE, CameraAngle.NONE, [croppedImageUrl]);
+  return generateImage(apiKey, upscalePrompt, aspectRatio, ImageSize.RES_4K, SubjectPose.NONE, CameraAngle.NONE, [croppedImageUrl]);
 };
