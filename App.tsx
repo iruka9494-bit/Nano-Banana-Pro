@@ -44,17 +44,14 @@ const App: React.FC = () => {
     referenceImages: []
   });
 
-  useEffect(() => {
-    const checkInitialKey = async () => {
-      try {
-        const hasKey = await (window as any).aistudio.hasSelectedApiKey();
-        setHasApiKey(hasKey);
-      } catch (e) {
-        console.error("API Key check error", e);
-      }
-    };
-    checkInitialKey();
-  }, []);
+useEffect(() => {
+  const checkInitialKey = () => {
+    // 구글 특수 기능 대신 브라우저 저장소(localStorage)에서 키가 있는지 확인합니다.
+    const savedKey = localStorage.getItem('user_gemini_api_key');
+    setHasApiKey(!!savedKey);
+  };
+  checkInitialKey();
+}, []);
 
   const handleKeySelected = useCallback(() => {
     setHasApiKey(true);
