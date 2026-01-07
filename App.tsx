@@ -169,12 +169,16 @@ try {
     } catch (e: any) { handleError(e); } finally { setIsGenerating(false); }
   };
 
-  const handlePromptEdit = async (sourceImage: GeneratedImage, instruction: string) => {
+const handlePromptEdit = async (sourceImage: GeneratedImage, instruction: string) => {
+  const savedKey = localStorage.getItem('gemini_api_key'); //
+  if (!savedKey) return alert("API 키가 없습니다.");
+  
     setIsGenerating(true);
     setError(null);
     setSelectedImage(null); 
-    try {
-      const base64Url = await editImageWithPrompt(sourceImage.url, instruction, sourceImage.aspectRatio);
+try {
+    // 맨 앞에 savedKey 추가
+    const base64Url = await editImageWithPrompt(savedKey, sourceImage.url, instruction, sourceImage.aspectRatio);
       setGeneratedImages(prev => [{
         id: Date.now().toString(), url: base64Url, prompt: `Edit: ${instruction}`,
         aspectRatio: sourceImage.aspectRatio, size: sourceImage.size, createdAt: Date.now()
