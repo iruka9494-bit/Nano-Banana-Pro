@@ -53,9 +53,12 @@ useEffect(() => {
   checkInitialKey();
 }, []);
 
-  const handleKeySelected = useCallback(() => {
-    setHasApiKey(true);
-  }, []);
+  const handleKeySelected = useCallback((key: string) => {
+  // 1. 입력받은 키를 브라우저에 안전하게 저장합니다.
+  localStorage.setItem('gemini_api_key', key);
+  // 2. 키가 생겼으므로 앱 화면으로 전환합니다.
+  setHasApiKey(true);
+}, []);
 
   const handleConfigChange = (key: keyof GenerationConfig, value: any) => {
     setConfig(prev => ({ ...prev, [key]: value }));
