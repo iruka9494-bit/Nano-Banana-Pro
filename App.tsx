@@ -1,4 +1,3 @@
-
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { ApiKeyGate } from './components/ApiKeyGate';
 import { Header } from './components/Header';
@@ -24,11 +23,8 @@ const App: React.FC = () => {
   const [generatedImages, setGeneratedImages] = useState<GeneratedImage[]>([]);
   const [isKeyManagerOpen, setIsKeyManagerOpen] = useState(false);
   
-  // Filter states
   const [filterAspectRatio, setFilterAspectRatio] = useState<AspectRatio | 'ALL'>('ALL');
   const [filterSize, setFilterSize] = useState<ImageSize | 'ALL'>('ALL');
-  
-  // Modal state
   const [selectedImage, setSelectedImage] = useState<GeneratedImage | null>(null);
   const [editingReferenceId, setEditingReferenceId] = useState<string | null>(null);
 
@@ -44,21 +40,16 @@ const App: React.FC = () => {
     referenceImages: []
   });
 
-useEffect(() => {
-  const checkInitialKey = () => {
-    // 구글 특수 기능 대신 브라우저 저장소(localStorage)에서 키가 있는지 확인합니다.
-    const savedKey = localStorage.getItem('user_gemini_api_key');
-    setHasApiKey(!!savedKey);
-  };
-  checkInitialKey();
-}, []);
+  // Vercel 배포용: 로컬 스토리지에서 키 확인
+  useEffect(() => {
+    const savedKey = localStorage.getItem('gemini_api_key');
+    if (savedKey) setHasApiKey(true);
+  }, []);
 
   const handleKeySelected = useCallback((key: string) => {
-  // 1. 입력받은 키를 브라우저에 안전하게 저장합니다.
-  localStorage.setItem('gemini_api_key', key);
-  // 2. 키가 생겼으므로 앱 화면으로 전환합니다.
-  setHasApiKey(true);
-}, []);
+    localStorage.setItem('gemini_api_key', key);
+    setHasApiKey(true);
+  }, []);
 
   const handleConfigChange = (key: keyof GenerationConfig, value: any) => {
     setConfig(prev => ({ ...prev, [key]: value }));
@@ -66,102 +57,74 @@ useEffect(() => {
   };
 
   const handleError = (e: any) => {
-      let msg = "";
-      if (typeof e === 'string') msg = e;
-      else if (e.message) msg = e.message;
-      else if (e.error && e.error.message) msg = e.error.message;
-      else msg = JSON.stringify(e);
-
-      let details: ErrorDetails = {
-        title: "오류가 발생했습니다",
-        message: msg,
-        suggestion: "잠시 후 다시 시도해 주세요."
-      };
-
-      if (msg.includes('403') || msg.includes('permission')) {
-        details = {
-          code: '403 Forbidden',
-          title: '인증 권한 오류',
-          message: '유효하지 않은 API 키이거나 해당 프로젝트에 결제가 활성화되어 있지 않습니다.',
-          suggestion: '보안 관리 센터에서 진단을 수행하거나 키를 다시 연결해 주세요.'
-        };
-      } else if (msg.includes('429')) {
-        details = { code: '429', title: '사용량 한도 초과', message: '단시간에 너무 많은 요청을 보냈습니다.', suggestion: '잠시 후 다시 시도해 주세요.' };
-      } else if (msg.includes('SAFETY') || msg.includes('blocked')) {
-        details = { code: 'Safety Block', title: '안전 정책 차단', message: '콘텐츠 필터에 의해 생성이 거부되었습니다.', suggestion: '프롬프트를 수정하여 다시 시도해 주세요.' };
-      }
-      
-      setError(details);
+    let msg = e.message || JSON.stringify(e);
+    let details: ErrorDetails = {
+      title: "오류가 발생했습니다",
+      message: msg,
+      suggestion: "잠시 후 다시 시도해 주세요."
+    };
+    if (msg.includes('403')) {
+      details = { title: '인증 권한 오류', message: '유료 프로젝트 결제가 활성화되지 않은 키입니다.', suggestion: '구글 클라우드 결제 상태를 확인하세요.' };
+    }
+    setError(details);
   };
 
-const handleGenerate = async () => {
-  // 1. 브라우저에서 저장된 API 키를 가져옵니다.
-  const savedKey = localStorage.getItem('gemini_api_key');
-  if (!savedKey) return alert("API 키가 저장되어 있지 않습니다.");
+  // 메인 생성 함수
+  const handleGenerate = async () => {
+    const savedKey = localStorage.getItem('gemini_api_key');
+    if (!savedKey) return;
 
-  const activeRefs = config.referenceImages.filter(img => img.isEnabled).map(img => img.url);
-  if (!config.prompt.trim() && activeRefs.length === 0) return;
+    const activeRefs = config.referenceImages.filter(img => img.isEnabled).map(img => img.url);
+    if (!config.prompt.trim() && activeRefs.length === 0) return;
 
-  setIsGenerating(true);
-  setError(null);
+    setIsGenerating(true);
+    setError(null);
 
-  try {
-    // 2. 함수의 첫 번째 인자로 savedKey를 추가합니다.
-    const base64Url = await generateImage(
-      savedKey, 
-      config.prompt, config.aspectRatio, config.imageSize,
-      config.subjectPose, config.cameraAngle, activeRefs, config.cameraType
-    );
+    try {
+      const base64Url = await generateImage(
+        savedKey, // 키 전달
+        config.prompt, config.aspectRatio, config.imageSize,
+        config.subjectPose, config.cameraAngle, activeRefs, config.cameraType
+      );
       
       const newImage: GeneratedImage = {
         id: Date.now().toString(),
         url: base64Url,
-        prompt: config.prompt || (activeRefs.length > 0 ? "Image Editing" : "Untitled"),
+        prompt: config.prompt || "Generated Image",
         aspectRatio: config.aspectRatio,
         size: config.imageSize,
         createdAt: Date.now()
       };
-
       setGeneratedImages(prev => [newImage, ...prev]);
-    } catch (e: any) {
-      handleError(e);
-    } finally {
-      setIsGenerating(false);
-    }
+    } catch (e: any) { handleError(e); } finally { setIsGenerating(false); }
   };
   
-const handleGenerateCharacterSheet = async (sourceImage: GeneratedImage) => {
-  // 1. 키 가져오기 추가
-  const savedKey = localStorage.getItem('gemini_api_key');
-  if (!savedKey) return alert("API 키가 없습니다.");
-
-  setIsGenerating(true);
-  setError(null);
-  setSelectedImage(null);
-  try {
-    // 2. 함수의 맨 앞에 savedKey 추가
-    const base64Url = await generateCharacterSheet(savedKey, sourceImage.prompt, sourceImage.url);
+  const handleGenerateCharacterSheet = async (sourceImage: GeneratedImage) => {
+    const savedKey = localStorage.getItem('gemini_api_key');
+    if (!savedKey) return;
+    setIsGenerating(true);
+    setError(null);
+    setSelectedImage(null);
+    try {
+      const base64Url = await generateCharacterSheet(savedKey, sourceImage.prompt, sourceImage.url);
       setGeneratedImages(prev => [{
-        id: Date.now().toString(), url: base64Url, prompt: `Character Sheet: ${sourceImage.prompt}`,
+        id: Date.now().toString(), url: base64Url, prompt: `Sheet: ${sourceImage.prompt}`,
         aspectRatio: AspectRatio.LANDSCAPE_16_9, size: ImageSize.RES_2K, createdAt: Date.now()
       }, ...prev]);
     } catch (e: any) { handleError(e); } finally { setIsGenerating(false); }
   };
 
   const handleRemixImage = async (sourceImage: GeneratedImage, pose: SubjectPose, angle: CameraAngle) => {
-    const savedKey = localStorage.getItem('gemini_api_key'); //
-    if (!savedKey) return alert("API 키가 없습니다.");
-  
+    const savedKey = localStorage.getItem('gemini_api_key');
+    if (!savedKey) return;
     setIsGenerating(true);
     setError(null);
     setSelectedImage(null); 
-try {
-    // 맨 앞에 savedKey 추가
-    const base64Url = await generateImage(
-      savedKey, 
-      sourceImage.prompt, sourceImage.aspectRatio, sourceImage.size,
-      pose, angle, [sourceImage.url]
-    );
+    try {
+      const base64Url = await generateImage(
+        savedKey, sourceImage.prompt, sourceImage.aspectRatio, sourceImage.size,
+        pose, angle, [sourceImage.url]
+      );
       setGeneratedImages(prev => [{
         id: Date.now().toString(), url: base64Url, prompt: `Remix: ${sourceImage.prompt}`,
         aspectRatio: sourceImage.aspectRatio, size: sourceImage.size, createdAt: Date.now()
@@ -170,15 +133,13 @@ try {
   };
 
   const handlePromptEdit = async (sourceImage: GeneratedImage, instruction: string) => {
-    const savedKey = localStorage.getItem('gemini_api_key'); //
-    if (!savedKey) return alert("API 키가 없습니다.");
-  
+    const savedKey = localStorage.getItem('gemini_api_key');
+    if (!savedKey) return;
     setIsGenerating(true);
     setError(null);
     setSelectedImage(null); 
-try {
-    // 맨 앞에 savedKey 추가
-    const base64Url = await editImageWithPrompt(savedKey, sourceImage.url, instruction, sourceImage.aspectRatio);
+    try {
+      const base64Url = await editImageWithPrompt(savedKey, sourceImage.url, instruction, sourceImage.aspectRatio);
       setGeneratedImages(prev => [{
         id: Date.now().toString(), url: base64Url, prompt: `Edit: ${instruction}`,
         aspectRatio: sourceImage.aspectRatio, size: sourceImage.size, createdAt: Date.now()
@@ -187,132 +148,65 @@ try {
   };
 
   const handleChangePose = async (sourceImage: GeneratedImage, sketchUrl: string, prompt: string) => {
-    const savedKey = localStorage.getItem('gemini_api_key'); //
-    if (!savedKey) return alert("API 키가 없습니다.");
-  
+    const savedKey = localStorage.getItem('gemini_api_key');
+    if (!savedKey) return;
     setIsGenerating(true);
     setError(null);
     setSelectedImage(null); 
     try {
-      // 맨 앞에 savedKey 추가
       const base64Url = await changePoseWithSketch(savedKey, sourceImage.url, sketchUrl, prompt, sourceImage.aspectRatio);
       setGeneratedImages(prev => [{
-        id: Date.now().toString(), url: base64Url, prompt: `Pose Change: ${prompt}`,
+        id: Date.now().toString(), url: base64Url, prompt: `Pose: ${prompt}`,
         aspectRatio: sourceImage.aspectRatio, size: sourceImage.size, createdAt: Date.now()
       }, ...prev]);
     } catch (e: any) { handleError(e); } finally { setIsGenerating(false); }
   };
 
   const handleUpdateImage = (id: string, updates: Partial<GeneratedImage>) => {
-    if (editingReferenceId && editingReferenceId === id) {
-       if (updates.url) {
-         setConfig(prev => ({
-           ...prev, referenceImages: prev.referenceImages.map(ref => ref.id === id ? { ...ref, url: updates.url! } : ref)
-         }));
-       }
-       return;
-    }
     setGeneratedImages(prev => prev.map(img => img.id === id ? { ...img, ...updates } : img));
-    if (selectedImage && selectedImage.id === id) {
-      setSelectedImage(prev => prev ? { ...prev, ...updates } : null);
-    }
   };
 
   const handleAddReference = (url: string) => {
-    if (config.referenceImages.length >= 20) { alert("최대 20장만 가능합니다."); return; }
     setConfig(prev => ({
       ...prev, referenceImages: [...prev.referenceImages, { id: Date.now().toString(), url, isEnabled: true, name: `Ref ${prev.referenceImages.length + 1}` }]
     }));
-    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleImportImage = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
-    const file = files[0];
     const reader = new FileReader();
     reader.onload = (event) => {
       const base64Url = event.target?.result as string;
-      const img = new Image();
-      img.onload = () => {
-        setGeneratedImages(prev => [{
-          id: Date.now().toString(), url: base64Url, prompt: file.name,
-          aspectRatio: AspectRatio.SQUARE, size: ImageSize.RES_1K, createdAt: Date.now()
-        }, ...prev]);
-      };
-      img.src = base64Url;
+      setGeneratedImages(prev => [{
+        id: Date.now().toString(), url: base64Url, prompt: "Imported",
+        aspectRatio: AspectRatio.SQUARE, size: ImageSize.RES_1K, createdAt: Date.now()
+      }, ...prev]);
     };
-    reader.readAsDataURL(file);
+    reader.readAsDataURL(files[0]);
   };
 
-  const resetFilters = () => { setFilterAspectRatio('ALL'); setFilterSize('ALL'); };
   const filteredImages = generatedImages.filter(img => (filterAspectRatio === 'ALL' || img.aspectRatio === filterAspectRatio) && (filterSize === 'ALL' || img.size === filterSize));
-  const hasActiveFilters = filterAspectRatio !== 'ALL' || filterSize !== 'ALL';
 
   if (!hasApiKey) return <ApiKeyGate onKeySelected={handleKeySelected} />;
 
   return (
     <div className="flex flex-col min-h-screen bg-slate-950">
-      <Header 
-        onOpenKeyManager={() => setIsKeyManagerOpen(true)} 
-        keyStatus={hasApiKey ? 'connected' : 'not-connected'} 
-      />
-      
-      <main className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-8">
+      <Header onOpenKeyManager={() => setIsKeyManagerOpen(true)} keyStatus="connected" />
+      <main className="flex-1 max-w-7xl mx-auto w-full px-4 py-8">
         <div className="flex flex-col lg:flex-row gap-8">
-          <div className="w-full lg:w-1/3 flex-shrink-0">
-            <div className="lg:sticky lg:top-24">
-              <Controls config={config} isGenerating={isGenerating} onChange={handleConfigChange} onSubmit={handleGenerate} hasHistory={generatedImages.length > 0} onEditReference={setEditingReferenceId} />
-              {error && (
-                <div className="mt-4 p-4 bg-red-950/30 border border-red-500/30 rounded-xl flex flex-col gap-3">
-                  <div className="flex items-center gap-2 text-red-400 font-bold border-b border-red-500/20 pb-2">
-                    <AlertTriangle className="w-5 h-5" /> <span>{error.title}</span>
-                  </div>
-                  <p className="text-red-300 text-sm leading-relaxed">{error.message}</p>
-                  {error.suggestion && <div className="bg-red-500/10 rounded-lg p-3 text-xs text-red-300/80">💡 {error.suggestion}</div>}
-                </div>
-              )}
-            </div>
+          <div className="w-full lg:w-1/3">
+            <Controls config={config} isGenerating={isGenerating} onChange={handleConfigChange} onSubmit={handleGenerate} hasHistory={generatedImages.length > 0} onEditReference={setEditingReferenceId} />
+            {error && <div className="mt-4 p-4 bg-red-950/30 border border-red-500/30 rounded-xl text-red-400 text-sm"><strong>{error.title}</strong><p>{error.message}</p></div>}
           </div>
-
-          <div className="w-full lg:w-2/3 space-y-8">
-            {isGenerating && (
-               <div className="w-full rounded-2xl bg-slate-900 border border-slate-800 animate-pulse flex items-center justify-center flex-col gap-4 mb-8 h-96">
-                 <div className="w-16 h-16 border-4 border-banana-500 border-t-transparent rounded-full animate-spin"></div>
-                 <p className="text-banana-500 font-medium animate-pulse">걸작을 만드는 중...</p>
-               </div>
-            )}
-            {generatedImages.length > 0 ? (
-                <>
-                  <div className="sticky top-0 z-10 -mx-2 px-2 py-2 backdrop-blur-md bg-slate-950/80 rounded-xl mb-4 border-b border-slate-800/50 flex flex-wrap items-center gap-3">
-                    <Filter className="w-4 h-4 text-slate-400" />
-                    <select value={filterAspectRatio} onChange={(e) => setFilterAspectRatio(e.target.value as AspectRatio | 'ALL')} className="bg-slate-900 border border-slate-800 text-slate-200 text-sm rounded-lg p-2"><option value="ALL">모든 비율</option>{Object.values(AspectRatio).map(r => <option key={r} value={r}>{r}</option>)}</select>
-                    <select value={filterSize} onChange={(e) => setFilterSize(e.target.value as ImageSize | 'ALL')} className="bg-slate-900 border border-slate-800 text-slate-200 text-sm rounded-lg p-2"><option value="ALL">모든 해상도</option>{Object.values(ImageSize).map(s => <option key={s} value={s}>{s}</option>)}</select>
-                    {hasActiveFilters && <button onClick={resetFilters} className="ml-auto text-xs text-slate-500 hover:text-banana-400">필터 초기화</button>}
-                    <button onClick={() => fileInputImportRef.current?.click()} className="text-xs flex items-center gap-1.5 bg-slate-800 hover:bg-slate-700 text-banana-400 p-2 rounded-lg border border-slate-700 ml-auto"><ImagePlus className="w-3.5 h-3.5" /> 이미지 불러오기</button>
-                  </div>
-                  <div className="space-y-8">{filteredImages.map(img => <ImageCard key={img.id} image={img} onClick={() => setSelectedImage(img)} />)}</div>
-                </>
-            ) : !isGenerating && (
-              <div className="h-96 flex flex-col items-center justify-center text-slate-600 border-2 border-dashed border-slate-800 rounded-2xl bg-slate-900/20">
-                <p className="text-lg font-medium text-slate-500">갤러리가 비어있습니다</p>
-                <button onClick={() => fileInputImportRef.current?.click()} className="mt-4 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-banana-400 rounded-lg flex items-center gap-2 transition-colors border border-slate-700"><Upload className="w-4 h-4" /> 내 이미지 불러오기</button>
-              </div>
-            )}
-            <input type="file" ref={fileInputImportRef} onChange={handleImportImage} className="hidden" accept="image/*" />
+          <div className="w-full lg:w-2/3">
+            {isGenerating && <div className="h-96 animate-pulse bg-slate-900 rounded-2xl flex items-center justify-center text-banana-500">생성 중...</div>}
+            <div className="space-y-8">{filteredImages.map(img => <ImageCard key={img.id} image={img} onClick={() => setSelectedImage(img)} />)}</div>
           </div>
         </div>
       </main>
-
       {selectedImage && <ImageModal image={selectedImage} onClose={() => setSelectedImage(null)} onUpdateImage={handleUpdateImage} onAddReference={handleAddReference} onGenerateCharacterSheet={() => handleGenerateCharacterSheet(selectedImage)} onRemixImage={handleRemixImage} onPromptEdit={handlePromptEdit} onPoseChange={handleChangePose} />}
-      {editingReferenceId && <ImageModal image={{ id: editingReferenceId, url: config.referenceImages.find(r => r.id === editingReferenceId)?.url || '', prompt: 'Reference', aspectRatio: AspectRatio.SQUARE, size: ImageSize.RES_1K, createdAt: Date.now() }} onClose={() => setEditingReferenceId(null)} onUpdateImage={handleUpdateImage} onAddReference={() => {}} onGenerateCharacterSheet={() => {}} onRemixImage={() => {}} onPromptEdit={() => {}} />}
-      
-      {isKeyManagerOpen && (
-        <KeyManagerModal 
-          onClose={() => setIsKeyManagerOpen(false)} 
-          onKeyChange={() => setHasApiKey(true)} 
-        />
-      )}
+      {isKeyManagerOpen && <KeyManagerModal onClose={() => setIsKeyManagerOpen(false)} onKeyChange={() => setHasApiKey(true)} />}
     </div>
   );
 };
