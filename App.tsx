@@ -130,12 +130,17 @@ const handleGenerate = async () => {
     }
   };
   
-  const handleGenerateCharacterSheet = async (sourceImage: GeneratedImage) => {
-    setIsGenerating(true);
-    setError(null);
-    setSelectedImage(null);
-    try {
-      const base64Url = await generateCharacterSheet(sourceImage.prompt, sourceImage.url);
+const handleGenerateCharacterSheet = async (sourceImage: GeneratedImage) => {
+  // 1. 키 가져오기 추가
+  const savedKey = localStorage.getItem('gemini_api_key');
+  if (!savedKey) return alert("API 키가 없습니다.");
+
+  setIsGenerating(true);
+  setError(null);
+  setSelectedImage(null);
+  try {
+    // 2. 함수의 맨 앞에 savedKey 추가
+    const base64Url = await generateCharacterSheet(savedKey, sourceImage.prompt, sourceImage.url);
       setGeneratedImages(prev => [{
         id: Date.now().toString(), url: base64Url, prompt: `Character Sheet: ${sourceImage.prompt}`,
         aspectRatio: AspectRatio.LANDSCAPE_16_9, size: ImageSize.RES_2K, createdAt: Date.now()
