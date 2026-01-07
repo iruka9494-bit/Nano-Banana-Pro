@@ -148,15 +148,20 @@ const handleGenerateCharacterSheet = async (sourceImage: GeneratedImage) => {
     } catch (e: any) { handleError(e); } finally { setIsGenerating(false); }
   };
 
-  const handleRemixImage = async (sourceImage: GeneratedImage, pose: SubjectPose, angle: CameraAngle) => {
+const handleRemixImage = async (sourceImage: GeneratedImage, pose: SubjectPose, angle: CameraAngle) => {
+  const savedKey = localStorage.getItem('gemini_api_key'); //
+  if (!savedKey) return alert("API 키가 없습니다.");
+  
     setIsGenerating(true);
     setError(null);
     setSelectedImage(null); 
-    try {
-      const base64Url = await generateImage(
-        sourceImage.prompt, sourceImage.aspectRatio, sourceImage.size,
-        pose, angle, [sourceImage.url]
-      );
+try {
+    // 맨 앞에 savedKey 추가
+    const base64Url = await generateImage(
+      savedKey, 
+      sourceImage.prompt, sourceImage.aspectRatio, sourceImage.size,
+      pose, angle, [sourceImage.url]
+    );
       setGeneratedImages(prev => [{
         id: Date.now().toString(), url: base64Url, prompt: `Remix: ${sourceImage.prompt}`,
         aspectRatio: sourceImage.aspectRatio, size: sourceImage.size, createdAt: Date.now()
