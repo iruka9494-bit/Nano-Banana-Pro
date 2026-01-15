@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Key, X, ShieldCheck, Check, Loader2, AlertCircle } from 'lucide-react';
 import { GoogleGenAI } from "@google/genai";
 
@@ -9,7 +9,17 @@ interface KeyManagerModalProps {
 }
 
 export const KeyManagerModal: React.FC<KeyManagerModalProps> = ({ onClose, onKeyChange }) => {
-  const [keyInput, setKeyInput] = useState(process.env.API_KEY || '');
+  // 안전하게 초기 키 값 가져오기
+  const getInitialKey = () => {
+    try {
+      const safeProcess = (window as any).process;
+      return safeProcess?.env?.API_KEY || '';
+    } catch {
+      return '';
+    }
+  };
+
+  const [keyInput, setKeyInput] = useState(getInitialKey());
   const [isTesting, setIsTesting] = useState(false);
   const [testResult, setTestResult] = useState<'none' | 'success' | 'fail'>('none');
 
@@ -22,7 +32,7 @@ export const KeyManagerModal: React.FC<KeyManagerModalProps> = ({ onClose, onKey
       // 임시 인스턴스로 연결 테스트
       const ai = new GoogleGenAI({ apiKey: keyInput.trim() });
       await ai.models.generateContent({
-        model: 'gemini-3-flash-lite-latest',
+        model: 'gemini-2.0-flash-lite-preview-02-05', // 가볍고 빠른 모델로 테스트
         contents: 'Hi',
       });
       setTestResult('success');
@@ -36,22 +46,29 @@ export const KeyManagerModal: React.FC<KeyManagerModalProps> = ({ onClose, onKey
 
   const handleSave = () => {
     const cleanKey = keyInput.trim();
+    const win = window as any;
+    
+    // process 객체 안전성 확보
+    if (!win.process) win.process = { env: {} };
+    if (!win.process.env) win.process.env = {};
+
     if (!cleanKey) {
       localStorage.removeItem('GEMINI_API_KEY');
-      (window as any).process.env.API_KEY = '';
+      win.process.env.API_KEY = '';
     } else {
       localStorage.setItem('GEMINI_API_KEY', cleanKey);
-      (window as any).process.env.API_KEY = cleanKey;
+      win.process.env.API_KEY = cleanKey;
     }
+    
     onKeyChange();
     onClose();
   };
 
   return (
-    <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+    <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in duration-300">
       <div className="w-full max-w-md bg-[#111827] border border-slate-800 rounded-3xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
         <div className="p-6 border-b border-slate-800 flex justify-between items-center bg-[#111827]">
-          <div className="flex items-center gap-2 text-pink-500 font-bold">
+          <div className="flex items-center gap-2 text-banana-500 font-bold">
             <Key className="w-5 h-5" />
             <span>API Key 설정 (External)</span>
           </div>
@@ -75,7 +92,7 @@ export const KeyManagerModal: React.FC<KeyManagerModalProps> = ({ onClose, onKey
                 value={keyInput}
                 onChange={(e) => setKeyInput(e.target.value)}
                 placeholder="AIza..."
-                className="w-full h-24 bg-black border border-slate-800 rounded-xl p-4 text-slate-200 placeholder-slate-700 focus:border-pink-500 outline-none transition-all resize-none font-mono text-sm"
+                className="w-full h-24 bg-black border border-slate-800 rounded-xl p-4 text-slate-200 placeholder-slate-700 focus:border-banana-500 outline-none transition-all resize-none font-mono text-sm"
               />
             </div>
           </div>
@@ -102,7 +119,7 @@ export const KeyManagerModal: React.FC<KeyManagerModalProps> = ({ onClose, onKey
             </button>
             <button
               onClick={handleSave}
-              className="flex-1 py-4 bg-pink-600 hover:bg-pink-500 text-white rounded-2xl font-bold text-sm transition-all shadow-lg shadow-pink-600/20 active:scale-95"
+              className="flex-1 py-4 bg-gradient-to-r from-banana-600 to-banana-500 hover:from-banana-500 hover:to-banana-400 text-slate-950 rounded-2xl font-bold text-sm transition-all shadow-lg shadow-banana-500/20 active:scale-95"
             >
               저장 및 닫기
             </button>

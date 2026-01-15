@@ -5,6 +5,15 @@ import { AspectRatio, ImageSize, SubjectPose, CameraAngle, CameraType } from "..
 // 모델 이름 상수로 정의
 const MODEL_NAME = "gemini-3-pro-image-preview";
 
+// process.env 안전 접근 헬퍼
+const getApiKey = (): string | undefined => {
+  try {
+    return (window as any).process?.env?.API_KEY || process.env.API_KEY;
+  } catch {
+    return undefined;
+  }
+};
+
 export const generateImage = async (
   prompt: string,
   aspectRatio: AspectRatio,
@@ -15,7 +24,7 @@ export const generateImage = async (
   cameraType: CameraType = CameraType.AUTO
 ): Promise<string> => {
   // 최신 키를 가져오기 위해 호출 직전에 인스턴스 생성
-  const apiKey = process.env.API_KEY;
+  const apiKey = getApiKey();
   if (!apiKey) throw new Error("API Key가 설정되지 않았습니다.");
   
   const ai = new GoogleGenAI({ apiKey });
@@ -73,7 +82,6 @@ export const generateImage = async (
   }
 };
 
-// Fix: Implement upscaleImage function
 export const upscaleImage = async (
   prompt: string,
   aspectRatio: AspectRatio,
@@ -83,7 +91,6 @@ export const upscaleImage = async (
   return generateImage(`Upscale and enhance quality: ${prompt}`, aspectRatio, targetSize, SubjectPose.NONE, CameraAngle.NONE, [imageUrl]);
 };
 
-// Fix: Implement outpaintImage function
 export const outpaintImage = async (
   canvasUrl: string,
   originalPrompt: string,
@@ -94,7 +101,6 @@ export const outpaintImage = async (
   return generateImage(prompt, aspectRatio, ImageSize.RES_2K, SubjectPose.NONE, CameraAngle.NONE, [canvasUrl]);
 };
 
-// Fix: Implement inpaintImage function
 export const inpaintImage = async (
   imageUrl: string,
   maskUrl: string,
@@ -105,7 +111,6 @@ export const inpaintImage = async (
   return generateImage(prompt, aspectRatio, ImageSize.RES_2K, SubjectPose.NONE, CameraAngle.NONE, [imageUrl, maskUrl]);
 };
 
-// Fix: Implement generateMacroShot function
 export const generateMacroShot = async (
   cropUrl: string,
   originalPrompt: string,
@@ -115,7 +120,6 @@ export const generateMacroShot = async (
   return generateImage(prompt, aspectRatio, ImageSize.RES_4K, SubjectPose.NONE, CameraAngle.NONE, [cropUrl]);
 };
 
-// 나머지 편집 관련 함수들도 동일하게 구현 가능
 export const editImageWithPrompt = async (imageUrl: string, prompt: string, ratio: AspectRatio) => generateImage(prompt, ratio, ImageSize.RES_1K, SubjectPose.NONE, CameraAngle.NONE, [imageUrl]);
 export const generateCharacterSheet = async (prompt: string, imageUrl: string) => generateImage("Character reference sheet, front/side/back view, " + prompt, AspectRatio.LANDSCAPE_16_9, ImageSize.RES_2K, SubjectPose.NONE, CameraAngle.NONE, [imageUrl]);
 export const changePoseWithSketch = async (imageUrl: string, sketchUrl: string, prompt: string, ratio: AspectRatio) => generateImage("Change pose to match sketch, " + prompt, ratio, ImageSize.RES_2K, SubjectPose.NONE, CameraAngle.NONE, [imageUrl, sketchUrl]);

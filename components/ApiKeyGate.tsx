@@ -15,13 +15,16 @@ export const ApiKeyGate: React.FC<ApiKeyGateProps> = ({ onKeySelected }) => {
   useEffect(() => {
     const checkKey = async () => {
       try {
-        // 1. 환경변수/로컬스토리지에 키가 이미 있는지 확인
-        if (process.env.API_KEY && process.env.API_KEY !== 'undefined') {
+        // 1. 환경변수/로컬스토리지에 키가 이미 있는지 안전하게 확인
+        const safeProcess = (window as any).process;
+        const envKey = safeProcess?.env?.API_KEY;
+
+        if (envKey && envKey !== 'undefined' && envKey.length > 0) {
           onKeySelected();
           return;
         }
 
-        // 2. 플랫폼 API 확인
+        // 2. 플랫폼 API 확인 (Google AI Studio)
         const aistudio = (window as any).aistudio;
         if (aistudio && typeof aistudio.hasSelectedApiKey === 'function') {
           const hasKey = await aistudio.hasSelectedApiKey();
@@ -30,12 +33,15 @@ export const ApiKeyGate: React.FC<ApiKeyGateProps> = ({ onKeySelected }) => {
             return;
           }
         } else {
-          // 3. 플랫폼 외부라면 수동 입력 모드 활성화
+          // 3. 플랫폼 외부라면 수동 입력 모드 활성화 및 모달 자동 오픈
           setIsExternal(true);
+          // 500ms 딜레이 후 모달을 띄워 자연스러운 진입 효과
+          setTimeout(() => setShowExternalModal(true), 500);
         }
       } catch (e) {
         console.error("Failed to check API key status", e);
         setIsExternal(true);
+        setShowExternalModal(true);
       } finally {
         setIsLoading(false);
       }
@@ -135,9 +141,18 @@ export const ApiKeyGate: React.FC<ApiKeyGateProps> = ({ onKeySelected }) => {
 
       {showExternalModal && (
         <KeyManagerModal 
-          onClose={() => setShowExternalModal(false)} 
+          onClose={() => {
+            // 키가 있으면 닫고, 없으면 모달 유지 (사용자 경험 고려)
+            const safeProcess = (window as any).process;
+            if (safeProcess?.env?.API_KEY) {
+               setShowExternalModal(false);
+            }
+          }} 
           onKeyChange={() => {
-            if (process.env.API_KEY) onKeySelected();
+            const safeProcess = (window as any).process;
+            if (safeProcess?.env?.API_KEY) {
+                onKeySelected();
+            }
           }} 
         />
       )}
