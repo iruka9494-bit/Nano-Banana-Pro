@@ -271,6 +271,10 @@ export const CompositionModal: React.FC<CompositionModalProps> = ({
     const layer = layers.find(l => l.id === selectedLayerId);
     if (!layer) return;
 
+    // We use updateLayer with saveToHistory=false for smooth scrolling visual, 
+    // but ideally we should debounce history save. 
+    // For simplicity, we commit to history here to ensure state persistence.
+    
     if (e.ctrlKey || e.metaKey) {
        e.preventDefault();
        const delta = e.deltaY > 0 ? 5 : -5;
@@ -316,7 +320,7 @@ export const CompositionModal: React.FC<CompositionModalProps> = ({
 
       if (layer.type === 'image' && layer.url) {
         const img = await new Promise<HTMLImageElement>((resolve, reject) => {
-          const i = document.createElement('img');
+          const i = new Image();
           i.crossOrigin = "anonymous";
           i.onload = () => resolve(i);
           i.onerror = reject;
@@ -328,6 +332,7 @@ export const CompositionModal: React.FC<CompositionModalProps> = ({
         ctx.fillStyle = layer.color || '#ffffff';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
+        // Text drawing origin is center due to translate above
         ctx.fillText(layer.text, 0, 0);
       }
 
@@ -335,6 +340,7 @@ export const CompositionModal: React.FC<CompositionModalProps> = ({
     }
 
     const dataUrl = canvas.toDataURL('image/png');
+    // Pass both the image data AND the aspect ratio back to App.tsx
     onSave(dataUrl, currentAspectRatio);
     onClose();
   };
@@ -412,6 +418,7 @@ export const CompositionModal: React.FC<CompositionModalProps> = ({
         <div className="flex-1 flex overflow-hidden">
           {/* Left Sidebar: Resources */}
           <div className="w-72 bg-slate-950 border-r border-slate-800 flex flex-col">
+            {/* Tabs */}
             <div className="flex border-b border-slate-800">
               <button 
                 onClick={() => { setActiveTab('refs'); setSearchTerm(''); }}
@@ -427,6 +434,7 @@ export const CompositionModal: React.FC<CompositionModalProps> = ({
               </button>
             </div>
 
+            {/* Search Bar */}
             <div className="p-3 border-b border-slate-800 bg-slate-900/50">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500" />
@@ -514,6 +522,7 @@ export const CompositionModal: React.FC<CompositionModalProps> = ({
             </div>
           </div>
 
+          {/* Main Canvas Area */}
           <div ref={containerRef} className="flex-1 bg-slate-900 relative overflow-hidden flex items-center justify-center p-8">
             <div className="absolute inset-0 z-0" style={{ 
                 backgroundImage: 'radial-gradient(#334155 1px, transparent 1px)', 
@@ -528,6 +537,7 @@ export const CompositionModal: React.FC<CompositionModalProps> = ({
               style={{ 
                 width: visualLayout.width,
                 height: visualLayout.height,
+                // Remove aspectRatio constraint from style as we explicitly set px via visualLayout
                 backgroundColor: canvasBackground === 'black' ? '#000' : canvasBackground === 'white' ? '#fff' : 'transparent',
                 backgroundImage: canvasBackground === 'grid' 
                   ? 'conic-gradient(#ccc 90deg, #fff 90deg 180deg, #ccc 180deg 270deg, #fff 270deg)'
@@ -590,12 +600,15 @@ export const CompositionModal: React.FC<CompositionModalProps> = ({
             </div>
           </div>
           
+          {/* Right Sidebar: Layer & Global Properties */}
           <div className="w-64 bg-slate-950 border-l border-slate-800 flex flex-col overflow-y-auto">
+            {/* Layer Properties */}
             <div className="p-4 border-b border-slate-800">
                <h3 className="text-xs font-bold uppercase text-slate-500 tracking-wider mb-4">레이어 속성</h3>
                
                {selectedLayer ? (
                  <div className="space-y-6">
+                   {/* Type Specific Controls */}
                    {selectedLayer.type === 'text' && (
                      <div className="space-y-4 pb-4 border-b border-slate-800">
                        <div className="space-y-2">
@@ -717,6 +730,7 @@ export const CompositionModal: React.FC<CompositionModalProps> = ({
                )}
             </div>
             
+            {/* Canvas Aspect Ratio Settings */}
             <div className="p-4 border-t border-slate-800">
                <h3 className="text-xs font-bold uppercase text-slate-500 tracking-wider mb-3">캔버스 비율</h3>
                <div className="grid grid-cols-3 gap-2">
@@ -753,6 +767,7 @@ export const CompositionModal: React.FC<CompositionModalProps> = ({
                </div>
             </div>
 
+            {/* Canvas Background Settings */}
             <div className="p-4 mt-auto border-t border-slate-800">
                <h3 className="text-xs font-bold uppercase text-slate-500 tracking-wider mb-3">캔버스 배경</h3>
                <div className="flex gap-2">

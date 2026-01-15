@@ -1,48 +1,10 @@
 
+
 import { GoogleGenAI } from "@google/genai";
 import { AspectRatio, ImageSize, SubjectPose, CameraAngle, CameraType } from "../types";
 
 // Use the mapped model name for "nano banana pro"
 const MODEL_NAME = "gemini-3-pro-image-preview";
-
-// Added testApiKeyConnection to verify API key validity as required by KeyManagerModal.tsx
-export const testApiKeyConnection = async (): Promise<{ success: boolean; message: string; details?: string }> => {
-  // Create a new instance to ensure it uses the latest process.env.API_KEY
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-  try {
-    // A simple text-based check using a fast model to verify connectivity and API key status
-    const response = await ai.models.generateContent({
-      model: 'gemini-3-flash-preview',
-      contents: 'connection test',
-    });
-
-    if (response.text) {
-      return { success: true, message: "API connection successful. Your key is valid and working." };
-    } else {
-      return { success: false, message: "No response from API", details: "The API returned an empty response, which may indicate a temporary issue or specific account restriction." };
-    }
-  } catch (error: any) {
-    let details = error.message || JSON.stringify(error);
-    let message = "API connection failed.";
-    
-    if (details.includes('403') || details.includes('permission')) {
-      message = "Unauthorized access.";
-      details = "The API key might be invalid, or it does not have permission for the requested models. Ensure billing is enabled if using paid-tier models.";
-    } else if (details.includes('401')) {
-      message = "Invalid API Key.";
-      details = "The provided API key is not recognized by Google AI Studio.";
-    } else if (details.includes('quota') || details.includes('429')) {
-      message = "Quota exceeded.";
-      details = "You have reached your API rate limit. Please wait before trying again.";
-    }
-    
-    return { 
-      success: false, 
-      message: message, 
-      details: details 
-    };
-  }
-};
 
 export const generateImage = async (
   prompt: string,
