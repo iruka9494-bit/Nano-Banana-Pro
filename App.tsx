@@ -49,7 +49,7 @@ const App: React.FC = () => {
           setHasApiKey(hasKey);
         }
       } catch (e) {
-        console.warn("Key check failed during app mount:", e);
+        console.warn("Key check failed:", e);
       } finally {
         setIsReady(true);
       }
@@ -79,12 +79,13 @@ const App: React.FC = () => {
         suggestion: "잠시 후 다시 시도하거나 프롬프트를 수정해 주세요."
       };
 
-      if (msg.includes('403') || msg.includes('permission')) {
+      if (msg.includes('403') || msg.includes('permission') || msg.includes('entity was not found')) {
+        setHasApiKey(false); // 키 문제 발생 시 다시 게이트웨이로
         details = {
           code: '403',
           title: '결제/권한 오류',
           message: '유효한 유료 API 키가 아니거나 결제 정보가 누락되었습니다.',
-          suggestion: '보안 센터에서 연결 상태를 다시 확인해 주세요.'
+          suggestion: 'API 키를 다시 선택하거나 결제 수단을 확인해 주세요.'
         };
       } else if (msg.includes('429')) {
         details = { code: '429', title: '할당량 초과', message: '너무 많은 요청을 보냈습니다.', suggestion: '잠시 후 다시 시도해 주세요.' };
@@ -125,8 +126,12 @@ const App: React.FC = () => {
     }
   };
 
-  // Skip rendering until initial check is done
-  if (!isReady) return <div className="min-h-screen bg-slate-950 flex items-center justify-center"><div className="w-12 h-12 border-4 border-banana-500/20 border-t-banana-500 rounded-full animate-spin"></div></div>;
+  if (!isReady) return (
+    <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center gap-4">
+      <div className="w-10 h-10 border-2 border-banana-500/20 border-t-banana-500 rounded-full animate-spin"></div>
+      <p className="text-slate-600 text-[10px] font-bold tracking-[0.3em] uppercase">Nano Banana Engine Loading</p>
+    </div>
+  );
 
   if (!hasApiKey) return <ApiKeyGate onKeySelected={handleKeySelected} />;
 
@@ -136,7 +141,6 @@ const App: React.FC = () => {
       
       <main className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-8">
         <div className="flex flex-col lg:flex-row gap-8">
-          {/* Controls Sidebar */}
           <div className="w-full lg:w-1/3 flex-shrink-0">
             <div className="lg:sticky lg:top-24">
               <Controls 
@@ -167,7 +171,6 @@ const App: React.FC = () => {
             </div>
           </div>
 
-          {/* Results Area */}
           <div className="w-full lg:w-2/3 space-y-8">
             {isGenerating && (
               <div className="w-full h-96 rounded-3xl bg-slate-900 border border-slate-800 flex flex-col items-center justify-center gap-6 animate-pulse">
@@ -190,7 +193,7 @@ const App: React.FC = () => {
               </div>
             ) : !isGenerating && (
               <div className="h-96 flex flex-col items-center justify-center text-slate-600 border-2 border-dashed border-slate-800 rounded-3xl bg-slate-900/10">
-                <p className="text-lg font-bold mb-1">갤러리가 비어 있습니다</p>
+                <p className="text-lg font-bold mb-1 text-slate-400">갤러리가 비어 있습니다</p>
                 <p className="text-sm opacity-50 mb-6">창의적인 아이디어를 입력해 보세요</p>
                 <button 
                   onClick={() => fileInputImportRef.current?.click()} 
@@ -224,9 +227,9 @@ const App: React.FC = () => {
           onClose={() => setSelectedImage(null)} 
           onUpdateImage={(id, up) => setGeneratedImages(p => p.map(i => i.id === id ? {...i, ...up} : i))}
           onAddReference={(url) => setConfig(p => ({...p, referenceImages: [...p.referenceImages, {id:Date.now().toString(), url, isEnabled:true, name:'From History'}]}))}
-          onGenerateCharacterSheet={() => {}} // 구현 예정
-          onRemixImage={() => {}} // 구현 예정
-          onPromptEdit={() => {}} // 구현 예정
+          onGenerateCharacterSheet={() => {}} 
+          onRemixImage={() => {}} 
+          onPromptEdit={() => {}} 
         />
       )}
       
