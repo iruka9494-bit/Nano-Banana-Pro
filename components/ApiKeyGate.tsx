@@ -33,13 +33,13 @@ export const ApiKeyGate: React.FC<ApiKeyGateProps> = ({ onKeySelected }) => {
             return;
           }
         } else {
-          // 3. 플랫폼 외부라면 수동 입력 모드 활성화 및 모달 자동 오픈
+          // 3. 플랫폼 외부라면 수동 입력 모드 활성화 및 모달 *즉시* 오픈
           setIsExternal(true);
-          // 500ms 딜레이 후 모달을 띄워 자연스러운 진입 효과
-          setTimeout(() => setShowExternalModal(true), 500);
+          setShowExternalModal(true); 
         }
       } catch (e) {
         console.error("Failed to check API key status", e);
+        // 에러 발생 시에도 안전하게 외부 모드로 간주하고 모달 띄움
         setIsExternal(true);
         setShowExternalModal(true);
       } finally {

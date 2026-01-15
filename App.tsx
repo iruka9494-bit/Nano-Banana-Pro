@@ -42,11 +42,13 @@ const App: React.FC = () => {
 
   useEffect(() => {
     const checkAuth = async () => {
-      // 1. 이미 환경변수(localStorage 폴리필 포함)가 설정되어 있는지 확인
-      if (process.env.API_KEY && process.env.API_KEY !== 'undefined') {
+      // 1. 안전하게 환경변수 확인 (index.html polyfill 덕분에 window.process는 존재함)
+      const envKey = (window as any).process?.env?.API_KEY;
+      
+      if (envKey && envKey !== 'undefined' && envKey.length > 0) {
         setHasApiKey(true);
       } else {
-        // 2. 플랫폼 API 확인
+        // 2. 플랫폼 API 확인 (Google AI Studio 환경)
         try {
           const aistudio = (window as any).aistudio;
           if (aistudio && typeof aistudio.hasSelectedApiKey === 'function') {
@@ -226,7 +228,10 @@ const App: React.FC = () => {
       {isKeyManagerOpen && (
         <KeyManagerModal 
           onClose={() => setIsKeyManagerOpen(false)} 
-          onKeyChange={() => setHasApiKey(!!process.env.API_KEY)} 
+          onKeyChange={() => {
+             const envKey = (window as any).process?.env?.API_KEY;
+             setHasApiKey(!!(envKey && envKey !== 'undefined'));
+          }} 
         />
       )}
     </div>
