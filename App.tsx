@@ -6,7 +6,7 @@ import { Controls } from './components/Controls';
 import { ImageCard } from './components/ImageCard';
 import { ImageModal } from './components/ImageModal';
 import { KeyManagerModal } from './components/KeyManagerModal';
-import { generateImage, generateCharacterSheet, editImageWithPrompt, changePoseWithSketch } from './services/geminiService';
+import { generateImage, generateCharacterSheet, editImageWithPrompt, changePoseWithSketch, getSafeApiKey } from './services/geminiService';
 import { AspectRatio, ImageSize, GenerationConfig, GeneratedImage, SubjectPose, CameraAngle, ReferenceImageItem, CameraType } from './types';
 import { AlertTriangle, Upload, Settings } from 'lucide-react';
 
@@ -42,8 +42,8 @@ const App: React.FC = () => {
 
   useEffect(() => {
     const checkAuth = async () => {
-      // 1. 안전하게 환경변수 확인 (index.html polyfill 덕분에 window.process는 존재함)
-      const envKey = (window as any).process?.env?.API_KEY;
+      // 1. 안전한 유틸 함수를 통해 키 확인
+      const envKey = getSafeApiKey();
       
       if (envKey && envKey !== 'undefined' && envKey.length > 0) {
         setHasApiKey(true);
@@ -229,7 +229,7 @@ const App: React.FC = () => {
         <KeyManagerModal 
           onClose={() => setIsKeyManagerOpen(false)} 
           onKeyChange={() => {
-             const envKey = (window as any).process?.env?.API_KEY;
+             const envKey = getSafeApiKey();
              setHasApiKey(!!(envKey && envKey !== 'undefined'));
           }} 
         />

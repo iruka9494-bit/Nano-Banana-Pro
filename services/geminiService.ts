@@ -5,14 +5,43 @@ import { AspectRatio, ImageSize, SubjectPose, CameraAngle, CameraType } from "..
 // 모델 이름 상수로 정의
 const MODEL_NAME = "gemini-3-pro-image-preview";
 
-// process.env 안전 접근 헬퍼
-const getApiKey = (): string | undefined => {
+// === Utility: Safe Environment Access ===
+// This helper safely retrieves the API KEY avoiding ReferenceErrors in browsers
+export const getSafeApiKey = (): string => {
+  if (typeof window !== 'undefined') {
+    // Check global window.process injected by our index.html polyfill
+    const win = window as any;
+    if (win.process?.env?.API_KEY) return win.process.env.API_KEY;
+    
+    // Check direct localStorage as a fallback
+    try {
+      const stored = localStorage.getItem('GEMINI_API_KEY');
+      if (stored) return stored;
+    } catch {}
+  }
+  
+  // Fallback for build-time process.env replacement (if bundler supports it)
   try {
-    return (window as any).process?.env?.API_KEY || process.env.API_KEY;
+    return process.env.API_KEY || '';
   } catch {
-    return undefined;
+    return '';
   }
 };
+
+export const setSafeApiKey = (key: string) => {
+   if (typeof window !== 'undefined') {
+      const win = window as any;
+      if (!win.process) win.process = { env: {} };
+      if (!win.process.env) win.process.env = {};
+      
+      win.process.env.API_KEY = key;
+      try {
+        if (key) localStorage.setItem('GEMINI_API_KEY', key);
+        else localStorage.removeItem('GEMINI_API_KEY');
+      } catch {}
+   }
+};
+// ========================================
 
 export const generateImage = async (
   prompt: string,
@@ -24,7 +53,7 @@ export const generateImage = async (
   cameraType: CameraType = CameraType.AUTO
 ): Promise<string> => {
   // 최신 키를 가져오기 위해 호출 직전에 인스턴스 생성
-  const apiKey = getApiKey();
+  const apiKey = getSafeApiKey();
   if (!apiKey) throw new Error("API Key가 설정되지 않았습니다.");
   
   const ai = new GoogleGenAI({ apiKey });

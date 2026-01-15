@@ -2,6 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import { Lock, ExternalLink, Zap, Globe, Key } from 'lucide-react';
 import { KeyManagerModal } from './KeyManagerModal';
+import { getSafeApiKey } from '../services/geminiService';
 
 interface ApiKeyGateProps {
   onKeySelected: () => void;
@@ -15,9 +16,8 @@ export const ApiKeyGate: React.FC<ApiKeyGateProps> = ({ onKeySelected }) => {
   useEffect(() => {
     const checkKey = async () => {
       try {
-        // 1. 환경변수/로컬스토리지에 키가 이미 있는지 안전하게 확인
-        const safeProcess = (window as any).process;
-        const envKey = safeProcess?.env?.API_KEY;
+        // 1. 안전하게 환경변수/로컬스토리지 확인
+        const envKey = getSafeApiKey();
 
         if (envKey && envKey !== 'undefined' && envKey.length > 0) {
           onKeySelected();
@@ -39,7 +39,6 @@ export const ApiKeyGate: React.FC<ApiKeyGateProps> = ({ onKeySelected }) => {
         }
       } catch (e) {
         console.error("Failed to check API key status", e);
-        // 에러 발생 시에도 안전하게 외부 모드로 간주하고 모달 띄움
         setIsExternal(true);
         setShowExternalModal(true);
       } finally {
@@ -142,15 +141,12 @@ export const ApiKeyGate: React.FC<ApiKeyGateProps> = ({ onKeySelected }) => {
       {showExternalModal && (
         <KeyManagerModal 
           onClose={() => {
-            // 키가 있으면 닫고, 없으면 모달 유지 (사용자 경험 고려)
-            const safeProcess = (window as any).process;
-            if (safeProcess?.env?.API_KEY) {
+            if (getSafeApiKey()) {
                setShowExternalModal(false);
             }
           }} 
           onKeyChange={() => {
-            const safeProcess = (window as any).process;
-            if (safeProcess?.env?.API_KEY) {
+            if (getSafeApiKey()) {
                 onKeySelected();
             }
           }} 

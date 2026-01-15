@@ -1,7 +1,8 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Key, X, ShieldCheck, Check, Loader2, AlertCircle } from 'lucide-react';
 import { GoogleGenAI } from "@google/genai";
+import { getSafeApiKey, setSafeApiKey } from '../services/geminiService';
 
 interface KeyManagerModalProps {
   onClose: () => void;
@@ -9,17 +10,7 @@ interface KeyManagerModalProps {
 }
 
 export const KeyManagerModal: React.FC<KeyManagerModalProps> = ({ onClose, onKeyChange }) => {
-  // 안전하게 초기 키 값 가져오기
-  const getInitialKey = () => {
-    try {
-      const safeProcess = (window as any).process;
-      return safeProcess?.env?.API_KEY || '';
-    } catch {
-      return '';
-    }
-  };
-
-  const [keyInput, setKeyInput] = useState(getInitialKey());
+  const [keyInput, setKeyInput] = useState(getSafeApiKey());
   const [isTesting, setIsTesting] = useState(false);
   const [testResult, setTestResult] = useState<'none' | 'success' | 'fail'>('none');
 
@@ -32,7 +23,7 @@ export const KeyManagerModal: React.FC<KeyManagerModalProps> = ({ onClose, onKey
       // 임시 인스턴스로 연결 테스트
       const ai = new GoogleGenAI({ apiKey: keyInput.trim() });
       await ai.models.generateContent({
-        model: 'gemini-2.0-flash-lite-preview-02-05', // 가볍고 빠른 모델로 테스트
+        model: 'gemini-2.0-flash-lite-preview-02-05',
         contents: 'Hi',
       });
       setTestResult('success');
@@ -46,20 +37,7 @@ export const KeyManagerModal: React.FC<KeyManagerModalProps> = ({ onClose, onKey
 
   const handleSave = () => {
     const cleanKey = keyInput.trim();
-    const win = window as any;
-    
-    // process 객체 안전성 확보
-    if (!win.process) win.process = { env: {} };
-    if (!win.process.env) win.process.env = {};
-
-    if (!cleanKey) {
-      localStorage.removeItem('GEMINI_API_KEY');
-      win.process.env.API_KEY = '';
-    } else {
-      localStorage.setItem('GEMINI_API_KEY', cleanKey);
-      win.process.env.API_KEY = cleanKey;
-    }
-    
+    setSafeApiKey(cleanKey);
     onKeyChange();
     onClose();
   };
