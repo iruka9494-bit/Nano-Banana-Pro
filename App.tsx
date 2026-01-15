@@ -44,13 +44,14 @@ const App: React.FC = () => {
   useEffect(() => {
     const checkInitialKey = async () => {
       try {
+        // window.aistudio 객체 접근 시 옵셔널 체이닝 사용
         const aistudio = (window as any).aistudio;
         if (aistudio && typeof aistudio.hasSelectedApiKey === 'function') {
           const hasKey = await aistudio.hasSelectedApiKey();
           setHasApiKey(hasKey);
         }
       } catch (e) {
-        console.error("Initial API Key check failed:", e);
+        console.warn("Initial API Key check safely bypassed:", e);
       }
     };
     checkInitialKey();
@@ -216,59 +217,63 @@ const App: React.FC = () => {
     reader.readAsDataURL(files[0]);
   };
 
-  if (!hasApiKey) return <ApiKeyGate onKeySelected={handleKeySelected} />;
-
   return (
     <div className="flex flex-col min-h-screen bg-slate-950">
-      <Header 
-        onOpenKeyManager={() => setIsKeyManagerOpen(true)} 
-        keyStatus={hasApiKey ? 'connected' : 'not-connected'} 
-      />
-      
-      <main className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-8">
-        <div className="flex flex-col lg:flex-row gap-8">
-          <div className="w-full lg:w-1/3 flex-shrink-0">
-            <div className="lg:sticky lg:top-24">
-              <Controls config={config} isGenerating={isGenerating} onChange={handleConfigChange} onSubmit={handleGenerate} hasHistory={generatedImages.length > 0} onEditReference={setEditingReferenceId} />
-              {error && (
-                <div className="mt-4 p-4 bg-red-950/30 border border-red-500/30 rounded-xl flex flex-col gap-3">
-                  <div className="flex items-center gap-2 text-red-400 font-bold border-b border-red-500/20 pb-2">
-                    <AlertTriangle className="w-5 h-5" /> <span>{error.title}</span>
-                  </div>
-                  <p className="text-red-300 text-sm">{error.message}</p>
-                  {error.suggestion && <div className="bg-red-500/10 rounded-lg p-2 text-[10px] text-red-300/80">💡 {error.suggestion}</div>}
+      {!hasApiKey ? (
+        <ApiKeyGate onKeySelected={handleKeySelected} />
+      ) : (
+        <>
+          <Header 
+            onOpenKeyManager={() => setIsKeyManagerOpen(true)} 
+            keyStatus={hasApiKey ? 'connected' : 'not-connected'} 
+          />
+          
+          <main className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-8">
+            <div className="flex flex-col lg:flex-row gap-8">
+              <div className="w-full lg:w-1/3 flex-shrink-0">
+                <div className="lg:sticky lg:top-24">
+                  <Controls config={config} isGenerating={isGenerating} onChange={handleConfigChange} onSubmit={handleGenerate} hasHistory={generatedImages.length > 0} onEditReference={setEditingReferenceId} />
+                  {error && (
+                    <div className="mt-4 p-4 bg-red-950/30 border border-red-500/30 rounded-xl flex flex-col gap-3">
+                      <div className="flex items-center gap-2 text-red-400 font-bold border-b border-red-500/20 pb-2">
+                        <AlertTriangle className="w-5 h-5" /> <span>{error.title}</span>
+                      </div>
+                      <p className="text-red-300 text-sm">{error.message}</p>
+                      {error.suggestion && <div className="bg-red-500/10 rounded-lg p-2 text-[10px] text-red-300/80">💡 {error.suggestion}</div>}
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
-          </div>
-
-          <div className="w-full lg:w-2/3 space-y-8">
-            {isGenerating && (
-               <div className="w-full rounded-2xl bg-slate-900 border border-slate-800 animate-pulse flex items-center justify-center flex-col gap-4 mb-8 h-96">
-                 <div className="w-16 h-16 border-4 border-banana-500 border-t-transparent rounded-full animate-spin"></div>
-                 <p className="text-banana-500 font-medium animate-pulse">걸작을 만드는 중...</p>
-               </div>
-            )}
-            {generatedImages.length > 0 ? (
-                <div className="space-y-8">{generatedImages.map(img => <ImageCard key={img.id} image={img} onClick={() => setSelectedImage(img)} />)}</div>
-            ) : !isGenerating && (
-              <div className="h-96 flex flex-col items-center justify-center text-slate-600 border-2 border-dashed border-slate-800 rounded-2xl bg-slate-900/20">
-                <p className="text-lg font-medium text-slate-500">갤러리가 비어있습니다</p>
-                <button onClick={() => fileInputImportRef.current?.click()} className="mt-4 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-banana-400 rounded-lg flex items-center gap-2 transition-colors border border-slate-700"><Upload className="w-4 h-4" /> 내 이미지 불러오기</button>
               </div>
-            )}
-            <input type="file" ref={fileInputImportRef} onChange={handleImportImage} className="hidden" accept="image/*" />
-          </div>
-        </div>
-      </main>
 
-      {selectedImage && <ImageModal image={selectedImage} onClose={() => setSelectedImage(null)} onUpdateImage={handleUpdateImage} onAddReference={handleAddReference} onGenerateCharacterSheet={() => handleGenerateCharacterSheet(selectedImage)} onRemixImage={handleRemixImage} onPromptEdit={handlePromptEdit} onPoseChange={handleChangePose} />}
-      
-      {isKeyManagerOpen && (
-        <KeyManagerModal 
-          onClose={() => setIsKeyManagerOpen(false)} 
-          onKeyChange={() => setHasApiKey(true)} 
-        />
+              <div className="w-full lg:w-2/3 space-y-8">
+                {isGenerating && (
+                  <div className="w-full rounded-2xl bg-slate-900 border border-slate-800 animate-pulse flex items-center justify-center flex-col gap-4 mb-8 h-96">
+                    <div className="w-16 h-16 border-4 border-banana-500 border-t-transparent rounded-full animate-spin"></div>
+                    <p className="text-banana-500 font-medium animate-pulse">걸작을 만드는 중...</p>
+                  </div>
+                )}
+                {generatedImages.length > 0 ? (
+                    <div className="space-y-8">{generatedImages.map(img => <ImageCard key={img.id} image={img} onClick={() => setSelectedImage(img)} />)}</div>
+                ) : !isGenerating && (
+                  <div className="h-96 flex flex-col items-center justify-center text-slate-600 border-2 border-dashed border-slate-800 rounded-2xl bg-slate-900/20">
+                    <p className="text-lg font-medium text-slate-500">갤러리가 비어있습니다</p>
+                    <button onClick={() => fileInputImportRef.current?.click()} className="mt-4 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-banana-400 rounded-lg flex items-center gap-2 transition-colors border border-slate-700"><Upload className="w-4 h-4" /> 내 이미지 불러오기</button>
+                  </div>
+                )}
+                <input type="file" ref={fileInputImportRef} onChange={handleImportImage} className="hidden" accept="image/*" />
+              </div>
+            </div>
+          </main>
+
+          {selectedImage && <ImageModal image={selectedImage} onClose={() => setSelectedImage(null)} onUpdateImage={handleUpdateImage} onAddReference={handleAddReference} onGenerateCharacterSheet={() => handleGenerateCharacterSheet(selectedImage)} onRemixImage={handleRemixImage} onPromptEdit={handlePromptEdit} onPoseChange={handleChangePose} />}
+          
+          {isKeyManagerOpen && (
+            <KeyManagerModal 
+              onClose={() => setIsKeyManagerOpen(false)} 
+              onKeyChange={() => setHasApiKey(true)} 
+            />
+          )}
+        </>
       )}
     </div>
   );
