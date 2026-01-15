@@ -7,8 +7,8 @@ import { ImageCard } from './components/ImageCard';
 import { ImageModal } from './components/ImageModal';
 import { KeyManagerModal } from './components/KeyManagerModal';
 import { generateImage, generateCharacterSheet, editImageWithPrompt, changePoseWithSketch } from './services/geminiService';
-import { AspectRatio, ImageSize, GenerationConfig, GeneratedImage, SubjectPose, CameraAngle, ReferenceImageItem, CameraType } from './types';
-import { AlertTriangle, Filter, X, Upload, ImagePlus } from 'lucide-react';
+import { AspectRatio, ImageSize, GenerationConfig, GeneratedImage, SubjectPose, CameraAngle, CameraType } from './types';
+import { AlertTriangle, Upload } from 'lucide-react';
 
 interface ErrorDetails {
   code?: string;
@@ -19,13 +19,12 @@ interface ErrorDetails {
 
 const App: React.FC = () => {
   const [hasApiKey, setHasApiKey] = useState<boolean>(false);
+  const [isReady, setIsReady] = useState<boolean>(false);
   const [isGenerating, setIsGenerating] = useState<boolean>(false);
   const [error, setError] = useState<ErrorDetails | null>(null);
   const [generatedImages, setGeneratedImages] = useState<GeneratedImage[]>([]);
   const [isKeyManagerOpen, setIsKeyManagerOpen] = useState(false);
   
-  const [filterAspectRatio, setFilterAspectRatio] = useState<AspectRatio | 'ALL'>('ALL');
-  const [filterSize, setFilterSize] = useState<ImageSize | 'ALL'>('ALL');
   const [selectedImage, setSelectedImage] = useState<GeneratedImage | null>(null);
   const [editingReferenceId, setEditingReferenceId] = useState<string | null>(null);
 
@@ -42,19 +41,20 @@ const App: React.FC = () => {
   });
 
   useEffect(() => {
-    const checkInitialKey = async () => {
+    const checkKey = async () => {
       try {
-        // window.aistudio 객체 접근 시 옵셔널 체이닝 사용
         const aistudio = (window as any).aistudio;
         if (aistudio && typeof aistudio.hasSelectedApiKey === 'function') {
           const hasKey = await aistudio.hasSelectedApiKey();
           setHasApiKey(hasKey);
         }
       } catch (e) {
-        console.warn("Initial API Key check safely bypassed:", e);
+        console.warn("Key check failed during app mount:", e);
+      } finally {
+        setIsReady(true);
       }
     };
-    checkInitialKey();
+    checkKey();
   }, []);
 
   const handleKeySelected = useCallback(() => {
@@ -74,22 +74,22 @@ const App: React.FC = () => {
       else msg = JSON.stringify(e);
 
       let details: ErrorDetails = {
-        title: "오류가 발생했습니다",
+        title: "오류 발생",
         message: msg,
-        suggestion: "잠시 후 다시 시도해 주세요."
+        suggestion: "잠시 후 다시 시도하거나 프롬프트를 수정해 주세요."
       };
 
       if (msg.includes('403') || msg.includes('permission')) {
         details = {
-          code: '403 Forbidden',
-          title: '인증 권한 오류',
-          message: '유효하지 않은 API 키이거나 해당 프로젝트에 결제가 활성화되어 있지 않습니다.',
-          suggestion: '보안 관리 센터에서 진단을 수행하거나 키를 다시 연결해 주세요.'
+          code: '403',
+          title: '결제/권한 오류',
+          message: '유효한 유료 API 키가 아니거나 결제 정보가 누락되었습니다.',
+          suggestion: '보안 센터에서 연결 상태를 다시 확인해 주세요.'
         };
       } else if (msg.includes('429')) {
-        details = { code: '429', title: '사용량 한도 초과', message: '단시간에 너무 많은 요청을 보냈습니다.', suggestion: '잠시 기다린 후 다시 시도해 주세요.' };
-      } else if (msg.includes('SAFETY') || msg.includes('blocked')) {
-        details = { code: 'Safety Block', title: '안전 정책 차단', message: '콘텐츠 필터에 의해 생성이 거부되었습니다.', suggestion: '프롬프트를 수정하여 다시 시도해 주세요.' };
+        details = { code: '429', title: '할당량 초과', message: '너무 많은 요청을 보냈습니다.', suggestion: '잠시 후 다시 시도해 주세요.' };
+      } else if (msg.includes('SAFETY')) {
+        details = { code: 'Safety', title: '정책 차단', message: '안전 가이드라인에 의해 생성이 차단되었습니다.', suggestion: '민감한 표현을 제거하고 다시 시도하세요.' };
       }
       
       setError(details);
@@ -111,7 +111,7 @@ const App: React.FC = () => {
       const newImage: GeneratedImage = {
         id: Date.now().toString(),
         url: base64Url,
-        prompt: config.prompt || (activeRefs.length > 0 ? "Image Editing" : "Untitled"),
+        prompt: config.prompt || (activeRefs.length > 0 ? "Edit Session" : "Untitled"),
         aspectRatio: config.aspectRatio,
         size: config.imageSize,
         createdAt: Date.now()
@@ -124,156 +124,117 @@ const App: React.FC = () => {
       setIsGenerating(false);
     }
   };
-  
-  const handleGenerateCharacterSheet = async (sourceImage: GeneratedImage) => {
-    setIsGenerating(true);
-    setError(null);
-    setSelectedImage(null);
-    try {
-      const base64Url = await generateCharacterSheet(sourceImage.prompt, sourceImage.url);
-      setGeneratedImages(prev => [{
-        id: Date.now().toString(), url: base64Url, prompt: `Character Sheet: ${sourceImage.prompt}`,
-        aspectRatio: AspectRatio.LANDSCAPE_16_9, size: ImageSize.RES_2K, createdAt: Date.now()
-      }, ...prev]);
-    } catch (e: any) { handleError(e); } finally { setIsGenerating(false); }
-  };
 
-  const handleRemixImage = async (sourceImage: GeneratedImage, pose: SubjectPose, angle: CameraAngle) => {
-    setIsGenerating(true);
-    setError(null);
-    setSelectedImage(null); 
-    try {
-      const base64Url = await generateImage(
-        sourceImage.prompt, sourceImage.aspectRatio, sourceImage.size,
-        pose, angle, [sourceImage.url]
-      );
-      setGeneratedImages(prev => [{
-        id: Date.now().toString(), url: base64Url, prompt: `Remix: ${sourceImage.prompt}`,
-        aspectRatio: sourceImage.aspectRatio, size: sourceImage.size, createdAt: Date.now()
-      }, ...prev]);
-    } catch (e: any) { handleError(e); } finally { setIsGenerating(false); }
-  };
+  // Skip rendering until initial check is done
+  if (!isReady) return <div className="min-h-screen bg-slate-950 flex items-center justify-center"><div className="w-12 h-12 border-4 border-banana-500/20 border-t-banana-500 rounded-full animate-spin"></div></div>;
 
-  const handlePromptEdit = async (sourceImage: GeneratedImage, instruction: string) => {
-    setIsGenerating(true);
-    setError(null);
-    setSelectedImage(null); 
-    try {
-      const base64Url = await editImageWithPrompt(sourceImage.url, instruction, sourceImage.aspectRatio);
-      setGeneratedImages(prev => [{
-        id: Date.now().toString(), url: base64Url, prompt: `Edit: ${instruction}`,
-        aspectRatio: sourceImage.aspectRatio, size: sourceImage.size, createdAt: Date.now()
-      }, ...prev]);
-    } catch (e: any) { handleError(e); } finally { setIsGenerating(false); }
-  };
-
-  const handleChangePose = async (sourceImage: GeneratedImage, sketchUrl: string, prompt: string) => {
-    setIsGenerating(true);
-    setError(null);
-    setSelectedImage(null); 
-    try {
-      const base64Url = await changePoseWithSketch(sourceImage.url, sketchUrl, prompt, sourceImage.aspectRatio);
-      setGeneratedImages(prev => [{
-        id: Date.now().toString(), url: base64Url, prompt: `Pose Change: ${prompt}`,
-        aspectRatio: sourceImage.aspectRatio, size: sourceImage.size, createdAt: Date.now()
-      }, ...prev]);
-    } catch (e: any) { handleError(e); } finally { setIsGenerating(false); }
-  };
-
-  const handleUpdateImage = (id: string, updates: Partial<GeneratedImage>) => {
-    if (editingReferenceId && editingReferenceId === id) {
-       if (updates.url) {
-         setConfig(prev => ({
-           ...prev, referenceImages: prev.referenceImages.map(ref => ref.id === id ? { ...ref, url: updates.url! } : ref)
-         }));
-       }
-       return;
-    }
-    setGeneratedImages(prev => prev.map(img => img.id === id ? { ...img, ...updates } : img));
-    if (selectedImage && selectedImage.id === id) {
-      setSelectedImage(prev => prev ? { ...prev, ...updates } : null);
-    }
-  };
-
-  const handleAddReference = (url: string) => {
-    if (config.referenceImages.length >= 20) { alert("최대 20장만 가능합니다."); return; }
-    setConfig(prev => ({
-      ...prev, referenceImages: [...prev.referenceImages, { id: Date.now().toString(), url, isEnabled: true, name: `Ref ${prev.referenceImages.length + 1}` }]
-    }));
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
-
-  const handleImportImage = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files || files.length === 0) return;
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const base64Url = event.target?.result as string;
-      setGeneratedImages(prev => [{
-        id: Date.now().toString(), url: base64Url, prompt: "Imported Image",
-        aspectRatio: AspectRatio.SQUARE, size: ImageSize.RES_1K, createdAt: Date.now()
-      }, ...prev]);
-    };
-    reader.readAsDataURL(files[0]);
-  };
+  if (!hasApiKey) return <ApiKeyGate onKeySelected={handleKeySelected} />;
 
   return (
-    <div className="flex flex-col min-h-screen bg-slate-950">
-      {!hasApiKey ? (
-        <ApiKeyGate onKeySelected={handleKeySelected} />
-      ) : (
-        <>
-          <Header 
-            onOpenKeyManager={() => setIsKeyManagerOpen(true)} 
-            keyStatus={hasApiKey ? 'connected' : 'not-connected'} 
-          />
-          
-          <main className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-8">
-            <div className="flex flex-col lg:flex-row gap-8">
-              <div className="w-full lg:w-1/3 flex-shrink-0">
-                <div className="lg:sticky lg:top-24">
-                  <Controls config={config} isGenerating={isGenerating} onChange={handleConfigChange} onSubmit={handleGenerate} hasHistory={generatedImages.length > 0} onEditReference={setEditingReferenceId} />
-                  {error && (
-                    <div className="mt-4 p-4 bg-red-950/30 border border-red-500/30 rounded-xl flex flex-col gap-3">
-                      <div className="flex items-center gap-2 text-red-400 font-bold border-b border-red-500/20 pb-2">
-                        <AlertTriangle className="w-5 h-5" /> <span>{error.title}</span>
-                      </div>
-                      <p className="text-red-300 text-sm">{error.message}</p>
-                      {error.suggestion && <div className="bg-red-500/10 rounded-lg p-2 text-[10px] text-red-300/80">💡 {error.suggestion}</div>}
-                    </div>
-                  )}
+    <div className="flex flex-col min-h-screen bg-slate-950 text-slate-200">
+      <Header />
+      
+      <main className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-8">
+        <div className="flex flex-col lg:flex-row gap-8">
+          {/* Controls Sidebar */}
+          <div className="w-full lg:w-1/3 flex-shrink-0">
+            <div className="lg:sticky lg:top-24">
+              <Controls 
+                config={config} 
+                isGenerating={isGenerating} 
+                onChange={handleConfigChange} 
+                onSubmit={handleGenerate} 
+                hasHistory={generatedImages.length > 0} 
+                onEditReference={setEditingReferenceId} 
+              />
+              
+              {error && (
+                <div className="mt-4 p-4 bg-red-950/30 border border-red-500/20 rounded-2xl flex flex-col gap-2">
+                  <div className="flex items-center gap-2 text-red-400 font-bold">
+                    <AlertTriangle className="w-4 h-4" /> <span>{error.title}</span>
+                  </div>
+                  <p className="text-red-300/80 text-xs leading-relaxed">{error.message}</p>
+                  {error.suggestion && <p className="text-[10px] text-red-400 italic">💡 {error.suggestion}</p>}
+                </div>
+              )}
+              
+              <button 
+                onClick={() => setIsKeyManagerOpen(true)}
+                className="w-full mt-4 py-3 bg-slate-900 border border-slate-800 rounded-xl text-xs text-slate-500 hover:text-banana-400 hover:border-banana-500/30 transition-all font-bold uppercase tracking-widest"
+              >
+                API 보안 설정 관리
+              </button>
+            </div>
+          </div>
+
+          {/* Results Area */}
+          <div className="w-full lg:w-2/3 space-y-8">
+            {isGenerating && (
+              <div className="w-full h-96 rounded-3xl bg-slate-900 border border-slate-800 flex flex-col items-center justify-center gap-6 animate-pulse">
+                <div className="relative">
+                  <div className="absolute inset-0 bg-banana-500/20 blur-xl rounded-full"></div>
+                  <div className="w-16 h-16 border-4 border-banana-500 border-t-transparent rounded-full animate-spin relative z-10"></div>
+                </div>
+                <div className="text-center space-y-2">
+                   <p className="text-banana-500 font-black text-xl tracking-tight">작품을 굽는 중...</p>
+                   <p className="text-slate-500 text-xs uppercase font-bold tracking-widest">Nano Banana Pro rendering</p>
                 </div>
               </div>
+            )}
 
-              <div className="w-full lg:w-2/3 space-y-8">
-                {isGenerating && (
-                  <div className="w-full rounded-2xl bg-slate-900 border border-slate-800 animate-pulse flex items-center justify-center flex-col gap-4 mb-8 h-96">
-                    <div className="w-16 h-16 border-4 border-banana-500 border-t-transparent rounded-full animate-spin"></div>
-                    <p className="text-banana-500 font-medium animate-pulse">걸작을 만드는 중...</p>
-                  </div>
-                )}
-                {generatedImages.length > 0 ? (
-                    <div className="space-y-8">{generatedImages.map(img => <ImageCard key={img.id} image={img} onClick={() => setSelectedImage(img)} />)}</div>
-                ) : !isGenerating && (
-                  <div className="h-96 flex flex-col items-center justify-center text-slate-600 border-2 border-dashed border-slate-800 rounded-2xl bg-slate-900/20">
-                    <p className="text-lg font-medium text-slate-500">갤러리가 비어있습니다</p>
-                    <button onClick={() => fileInputImportRef.current?.click()} className="mt-4 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-banana-400 rounded-lg flex items-center gap-2 transition-colors border border-slate-700"><Upload className="w-4 h-4" /> 내 이미지 불러오기</button>
-                  </div>
-                )}
-                <input type="file" ref={fileInputImportRef} onChange={handleImportImage} className="hidden" accept="image/*" />
+            {generatedImages.length > 0 ? (
+              <div className="grid grid-cols-1 gap-8">
+                {generatedImages.map(img => (
+                  <ImageCard key={img.id} image={img} onClick={() => setSelectedImage(img)} />
+                ))}
               </div>
-            </div>
-          </main>
+            ) : !isGenerating && (
+              <div className="h-96 flex flex-col items-center justify-center text-slate-600 border-2 border-dashed border-slate-800 rounded-3xl bg-slate-900/10">
+                <p className="text-lg font-bold mb-1">갤러리가 비어 있습니다</p>
+                <p className="text-sm opacity-50 mb-6">창의적인 아이디어를 입력해 보세요</p>
+                <button 
+                  onClick={() => fileInputImportRef.current?.click()} 
+                  className="px-6 py-3 bg-slate-800 hover:bg-slate-700 text-white rounded-xl flex items-center gap-2 transition-all border border-slate-700"
+                >
+                  <Upload className="w-4 h-4" /> 내 이미지 가져오기
+                </button>
+              </div>
+            )}
+            <input type="file" ref={fileInputImportRef} onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) {
+                const reader = new FileReader();
+                reader.onload = (ev) => {
+                  const base64 = ev.target?.result as string;
+                  setGeneratedImages(prev => [{
+                    id: Date.now().toString(), url: base64, prompt: "Imported",
+                    aspectRatio: AspectRatio.SQUARE, size: ImageSize.RES_1K, createdAt: Date.now()
+                  }, ...prev]);
+                };
+                reader.readAsDataURL(file);
+              }
+            }} className="hidden" accept="image/*" />
+          </div>
+        </div>
+      </main>
 
-          {selectedImage && <ImageModal image={selectedImage} onClose={() => setSelectedImage(null)} onUpdateImage={handleUpdateImage} onAddReference={handleAddReference} onGenerateCharacterSheet={() => handleGenerateCharacterSheet(selectedImage)} onRemixImage={handleRemixImage} onPromptEdit={handlePromptEdit} onPoseChange={handleChangePose} />}
-          
-          {isKeyManagerOpen && (
-            <KeyManagerModal 
-              onClose={() => setIsKeyManagerOpen(false)} 
-              onKeyChange={() => setHasApiKey(true)} 
-            />
-          )}
-        </>
+      {selectedImage && (
+        <ImageModal 
+          image={selectedImage} 
+          onClose={() => setSelectedImage(null)} 
+          onUpdateImage={(id, up) => setGeneratedImages(p => p.map(i => i.id === id ? {...i, ...up} : i))}
+          onAddReference={(url) => setConfig(p => ({...p, referenceImages: [...p.referenceImages, {id:Date.now().toString(), url, isEnabled:true, name:'From History'}]}))}
+          onGenerateCharacterSheet={() => {}} // 구현 예정
+          onRemixImage={() => {}} // 구현 예정
+          onPromptEdit={() => {}} // 구현 예정
+        />
+      )}
+      
+      {isKeyManagerOpen && (
+        <KeyManagerModal 
+          onClose={() => setIsKeyManagerOpen(false)} 
+          onKeyChange={() => setHasApiKey(true)} 
+        />
       )}
     </div>
   );
